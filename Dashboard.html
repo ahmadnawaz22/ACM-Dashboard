@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Account Management Dashboard</title>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Rounded" rel="stylesheet">
+
+  <!-- Google Charts (Material) -->
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
+    google.charts.load('current', {packages:['bar','line']});
+  </script>
+
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --card:#fff;
+      --line:#e7edf5;
+      --ink:#1d2a3a;
+      --muted:#6b7a90;
+      --accent:#3b82f6;         /* bluish */
+      --accent-2:#647ae3;       /* bluish */
+      --accent-3:#8aa4ff;       /* lighter */
+      --radius:14px;
+      --pad:14px;
+      --elev:0 6px 18px rgba(39,71,125,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 Roboto,system-ui,Arial,sans-serif}
+
+    .wrap{max-width:1400px;margin:auto;padding:14px}
+    .appbar{
+      background: linear-gradient(135deg,var(--accent) 0%, var(--accent-2) 60%, var(--accent-3) 100%);
+      color:#fff; border-radius:var(--radius); padding:16px var(--pad); box-shadow:var(--elev);
+      display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;
+    }
+    .appbar h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.2px}
+    .filters{display:flex;gap:8px;flex-wrap:wrap}
+    .md-field{position:relative}
+    .md-field select{
+      appearance:none; -webkit-appearance:none;
+      border:1px solid rgba(255,255,255,.4); color:#fff; background:rgba(255,255,255,.18);
+      padding:10px 36px 10px 12px; border-radius:10px; outline:none; font-weight:500;
+      backdrop-filter: blur(4px);
+    }
+    .md-field .chev{
+      position:absolute; right:10px; top:50%; transform:translateY(-50%);
+      font-family:'Material Symbols Rounded'; font-size:18px; color:#fff; pointer-events:none;
+    }
+
+    .grid{display:grid; gap:14px}
+    .cols-2{grid-template-columns:1fr 1fr}
+    .cols-3{grid-template-columns:1fr 1fr 1fr}
+    @media(max-width:1100px){.cols-2,.cols-3{grid-template-columns:1fr}}
+
+    .card{
+      background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--elev); padding:var(--pad);
+    }
+    .card h2{
+      margin:0 0 10px; font-size:15px; font-weight:700; color:#19314f; letter-spacing:.2px;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      border-bottom:1px solid var(--line); padding-bottom:8px;
+    }
+
+    .metrics{display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+    .metric{
+      background:#f7faff; border:1px solid var(--line); border-radius:12px; padding:10px;
+    }
+    .metric .label{font-size:11px; color:var(--muted); margin-bottom:2px}
+    .metric .value{font-size:16px; font-weight:700}
+    .badge{display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700}
+    .badge.ok{background:#dcfce7;color:#166534}
+    .badge.warn{background:#fee2e2;color:#7f1d1d}
+
+    .toolbar-right select{
+      border:1px solid var(--line); background:#f7faff; color:#var(--ink); padding:6px 10px; border-radius:8px;
+    }
+
+    .chart{height:260px}
+    .table{width:100%; border-collapse:collapse; font-size:13px}
+    .table th,.table td{border-bottom:1px solid var(--line); padding:8px 6px; text-align:left}
+    .table th{font-size:12px; color:#muted; font-weight:700}
+    .table tr:hover td{background:#f8fbff}
+
+    a.link{display:inline-flex; align-items:center; gap:6px; color:#255bd6; text-decoration:none; font-weight:600}
+    a.link .ico{font-family:'Material Symbols Rounded'; font-size:18px}
+
+    /* spacing + contract cards */
+    .appbar{ margin-bottom:20px; }
+    .grid{ gap:14px; margin-bottom:12px; }
+    section.card{ margin-bottom:12px; }
+    .contract-card{background:#f7faff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px}
+    .contract-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:700;color:#1d2a3a}
+    .contract-dates{font-size:12px;color:#64748b}
+
+    /* subtle loading text in the appbar (right side) */
+    .load-hint{font-size:12px;color:rgba(255,255,255,.9)}
+
+    /* Hide the built-in arrow (we'll draw our own) */
+    .md-field .chev{ display:none; }
+
+    /* Visually hide native <select> but keep it functional for events */
+    .native-select-hidden{
+      position:absolute !important;
+      left:-9999px !important;
+      width:1px;height:1px;opacity:0;pointer-events:none;
+    }
+
+    /* Fancy translucent select */
+    .fancy-select{ position:relative; }
+    .fancy-trigger{
+      display:flex;align-items:center;gap:8px;
+      border:1px solid rgba(255,255,255,.45);
+      color:#fff;background:rgba(255,255,255,.18);
+      padding:10px 12px;border-radius:10px;
+      backdrop-filter: blur(6px);
+      cursor:pointer; user-select:none;
+    }
+    .fancy-trigger .icon{ font-family:'Material Symbols Rounded'; font-size:18px; }
+
+    /* Dropdown panel */
+    .fancy-panel{
+      position:absolute; z-index:1000;
+      top:calc(100% + 6px); left:0; min-width:220px;
+      background:rgba(18,35,60,.92); color:#fff;
+      backdrop-filter: blur(10px);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:12px; box-shadow:0 10px 24px rgba(0,0,0,.25);
+      padding:6px; display:none; max-height:260px; overflow:auto;
+    }
+    .fancy-select.open .fancy-panel{ display:block; }
+
+    /* Options */
+    .fancy-option{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:8px 10px;border-radius:8px;cursor:pointer;
+    }
+    .fancy-option:hover{ background:rgba(255,255,255,.12); }
+    .fancy-option[aria-selected="true"]{ background:rgba(59,130,246,.28); }
+    .fancy-option .check{ font-family:'Material Symbols Rounded'; font-size:18px; opacity:.9; }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Title / Filters -->
+    <div class="appbar">
+      <h1>Account Management Dashboard</h1>
+      <div class="filters">
+        <div class="md-field">
+          <select id="fCustomer" aria-label="Customer">
+            <option value="">Customer (All)</option>
+          </select>
+          <span class="chev">expand_more</span>
+        </div>
+        <div class="md-field">
+          <select id="fCommName" aria-label="Commercial Name">
+            <option value="">Commercial Name (All)</option>
+          </select>
+          <span class="chev">expand_more</span>
+        </div>
+        <div class="md-field">
+          <select id="fAM" aria-label="Account Manager">
+            <option value="">Account Manager (All)</option>
+          </select>
+          <span class="chev">expand_more</span>
+        </div>
+        <div class="md-field">
+          <select id="fStatus" aria-label="Status">
+            <option value="">Status (All)</option>
+          </select>
+          <span class="chev">expand_more</span>
+        </div>
+        <span id="loadHint" class="load-hint"></span>
+      </div>
+    </div>
+
+    <!-- Row 1: Key Account Info + Client Health -->
+    <div class="grid cols-2">
+      <section class="card">
+        <h2>Key Account Information</h2>
+        <div class="metrics">
+          <div class="metric"><div class="label">Customer Name</div><div class="value">Acme Corp</div></div>
+          <div class="metric"><div class="label">Commercial Name</div><div class="value">ACME</div></div>
+          <div class="metric"><div class="label">Deal Type</div><div class="value">Enterprise</div></div>
+          <div class="metric"><div class="label">Account Manager</div><div class="value">Sarah Johnson</div></div>
+          <div class="metric"><div class="label">Customer Success</div><div class="value">M. Chen</div></div>
+          <div class="metric"><div class="label">Executive Sponsor</div><div class="value">D. Williams</div></div>
+          <div class="metric"><div class="label">Support Type</div><div class="value">Premium</div></div>
+          <div class="metric"><div class="label">Deal Category</div><div class="value">Strategic</div></div>
+          <div class="metric"><div class="label">Active Countries</div><div class="value">UAE, KSA, EG</div></div>
+          <div class="metric">
+            <div class="label">Contract Folder</div>
+            <a class="link" href="#" target="_blank"><span class="ico">folder_open</span>Open Folder</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Client Health</h2>
+        <div class="metrics">
+          <div class="metric"><div class="label">Client Since</div><div class="value">Jan 2022</div></div>
+          <div class="metric"><div class="label">Lifetime Months</div><div class="value">36</div></div>
+          <div class="metric"><div class="label">Renewal Date</div><div class="value">Dec 2025</div></div>
+          <div class="metric"><div class="label">Months to Renewal</div><div class="value">4</div></div>
+          <div class="metric"><div class="label">License Type</div><div class="value">Per Txn</div></div>
+          <div class="metric"><div class="label">Renewal Type</div><div class="value">Auto</div></div>
+          <div class="metric"><div class="label">Rollover</div><div class="value">Yes</div></div>
+          <div class="metric"><div class="label">Status</div><div class="value"><span class="badge ok">Active</span></div></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Row 2: Utilization + Revenue & Growth -->
+    <div class="grid cols-2">
+      <section class="card">
+        <h2>
+          <span>Utilization</span>
+          <span class="toolbar-right">
+            <select id="productFilter" aria-label="Product">
+              <option>All Products</option><option>KYC</option><option>AML</option><option>1:N</option><option>Txn Auth</option>
+            </select>
+          </span>
+        </h2>
+        <div class="metrics">
+          <div class="metric"><div class="label">License Utilization</div><div class="value">78%</div></div>
+          <div class="metric"><div class="label">Daily Run Rate</div><div class="value">12,450</div></div>
+          <div class="metric"><div class="label">QoQ Growth</div><div class="value">18.5%</div></div>
+          <div class="metric"><div class="label">Web SDK%</div><div class="value">62%</div></div>
+          <div class="metric"><div class="label">Mobile SDK%</div><div class="value">38%</div></div>
+          <div class="metric"><div class="label">SDK Version</div><div class="value">v3.2.1</div></div>
+        </div>
+        <div id="chartConsumption" class="chart" aria-label="License consumption chart"></div>
+      </section>
+
+      <section class="card">
+        <h2>Revenue & Growth</h2>
+        <div class="metrics">
+          <div class="metric"><div class="label">ARR</div><div class="value">$1.25M</div></div>
+          <div class="metric"><div class="label">% of Total ARR</div><div class="value">8.5%</div></div>
+          <div class="metric"><div class="label">Annualized Revenue</div><div class="value">$1.18M</div></div>
+          <div class="metric"><div class="label">% of Total Revenue</div><div class="value">7.8%</div></div>
+          <div class="metric"><div class="label">Potential Upsell</div><div class="value">$320K</div></div>
+          <div class="metric"><div class="label">Open Opportunity</div><div class="value">$180K</div></div>
+        </div>
+        <div id="chartRevenue" class="chart" aria-label="Revenue by service chart"></div>
+      </section>
+    </div>
+
+    <!-- Row 3: Contract Details (Main Block) -->
+    <section class="card" id="contracts">
+      <h2>Contract Details</h2>
+
+      <div class="contract-card">
+        <div class="contract-header">
+          <div>AC-001</div>
+          <div class="contract-dates"><strong>Start:</strong> 2025-01-01 • <strong>End:</strong> 2025-12-31</div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>Product</th><th>Volume Bought</th><th>Unit Price</th><th>Total Price</th><th>Contract Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>KYC</td><td>1,000,000</td><td>$0.05</td><td>$50,000</td><td>$200,000</td></tr>
+            <tr><td>AML</td><td>200,000</td><td>$0.12</td><td>$24,000</td><td>$120,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="contract-card">
+        <div class="contract-header">
+          <div>AC-002</div>
+          <div class="contract-dates"><strong>Start:</strong> 2025-03-01 • <strong>End:</strong> 2026-02-28</div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>Product</th><th>Volume Bought</th><th>Unit Price</th><th>Total Price</th><th>Contract Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1:N</td><td>500,000</td><td>$0.10</td><td>$50,000</td><td>$150,000</td></tr>
+            <tr><td>Txn Auth</td><td>300,000</td><td>$0.08</td><td>$24,000</td><td>$90,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Row 4: Invoicing Status -->
+    <section class="card" style="margin: top 12px;px">
+      <h2>Invoicing Status</h2>
+      <table class="table" aria-label="Outstanding invoices">
+        <thead>
+          <tr>
+            <th>Invoice Number</th><th>Contract Code</th><th>Issue Date</th><th>Due Date</th><th>Total Amount</th><th>Paid</th><th>Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>INV-2025-001</td><td>AC-001</td><td>2025-05-10</td><td>2025-06-10</td><td>$25,000</td><td>$10,000</td><td>$15,000</td></tr>
+          <tr><td>INV-2025-014</td><td>AC-002</td><td>2025-06-01</td><td>2025-07-01</td><td>$12,000</td><td>$0</td><td>$12,000</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Charts (Material) -->
+  <script>
+    google.charts.setOnLoadCallback(drawCharts);
+    window.addEventListener('resize', drawCharts);
+
+    function drawCharts(){
+      drawConsumption();
+      drawRevenue();
+    }
+
+    // Consumption — Material Line
+    function drawConsumption(){
+      const data = new google.visualization.DataTable();
+      data.addColumn('string','Month');
+      data.addColumn('number','Expected');
+      data.addColumn('number','Actual');
+      data.addRows([
+        ['Jan',100000,  95000],
+        ['Feb',110000, 108000],
+        ['Mar',120000, 115000],
+        ['Apr',130000, 125000],
+        ['May',140000, 138000],
+        ['Jun',150000, 142000]
+      ]);
+
+      const opts = google.charts.Line.convertOptions({
+        chart: { title: 'License Consumption vs Expected' },
+        legend: { position: 'right' }
+      });
+
+      new google.charts.Line(document.getElementById('chartConsumption')).draw(data, opts);
+    }
+
+    // Revenue — Material Stacked Bar
+    function drawRevenue(){
+      const data = new google.visualization.DataTable();
+      data.addColumn('string','Month');
+      data.addColumn('number','KYC');
+      data.addColumn('number','AML');
+      data.addColumn('number','1:N');
+      data.addColumn('number','Txn Auth');
+      data.addColumn('number','Setup');
+      data.addColumn('number','Support');
+      data.addRows([
+        ['Jan',45000,15000, 8000,12000,5000,3000],
+        ['Feb',48000,16000, 8500,13000,5000,3000],
+        ['Mar',52000,17000, 9000,14000,5000,3000],
+        ['Apr',51000,18000, 9500,14500,5000,3000],
+        ['May',55000,19000,10000,15000,5000,3000],
+        ['Jun',58000,20000,10500,16000,5000,3000]
+      ]);
+
+      const opts = google.charts.Bar.convertOptions({
+        chart: { title: 'Revenue Over Time by Service' },
+        isStacked: true,
+        legend: { position: 'right' }
+      });
+
+      new google.charts.Bar(document.getElementById('chartRevenue')).draw(data, opts);
+    }
+  </script>
+
+  <!-- Interlinked Filters wiring (talks to Filters.gs via Code.gs execQuery) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initial load
+      refreshFilters();
+      // Interlink: any change -> refresh others
+      ['fCustomer','fCommName','fAM','fStatus'].forEach(id => {
+        document.getElementById(id).addEventListener('change', refreshFilters);
+      });
+    });
+
+    function getSelection() {
+      const val = id => {
+        const v = document.getElementById(id).value;
+        return v === '' ? null : v;
+      };
+      return {
+        customerName:   val('fCustomer'),   // ContractComponents.CustomerName
+        clientName:     val('fCommName'),   // ContractComponents.ClientName
+        accountManager: val('fAM'),         // ContractComponents.AccountManager
+        status:         val('fStatus')      // ContractComponents.Status
+      };
+    }
+
+    function setLoading(msg){
+      const el = document.getElementById('loadHint');
+      el.textContent = msg || '';
+    }
+
+    function refreshFilters() {
+      const payload = getSelection();
+      setLoading('Updating filters…');
+      google.script.run
+        .withSuccessHandler(applyFilterOptions)
+        .withFailureHandler(err => { setLoading(''); alert('Filter load failed: ' + err.message); })
+        .execQuery('filters.getOptions', payload);
+    }
+
+    function applyFilterOptions(data) {
+      // data = { customers, commercialNames, accountManagers, statuses, selected:{...} }
+      setOptions('fCustomer', data.customers,        data.selected.customerName,   'Customer (All)');
+      setOptions('fCommName', data.commercialNames,  data.selected.clientName,     'Commercial Name (All)');
+      setOptions('fAM',       data.accountManagers,  data.selected.accountManager, 'Account Manager (All)');
+      setOptions('fStatus',   data.statuses,         data.selected.status,         'Status (All)');
+
+      setLoading('');
+      // TODO: after filters settle, call your data loaders, e.g.:
+      // google.script.run.withSuccessHandler(updateDashboard).execQuery('blocks.loadAll', data.selected);
+    }
+
+    function setOptions(selectId, items, selectedValue, placeholder) {
+      const sel = document.getElementById(selectId);
+      const keep = selectedValue || '';
+      sel.innerHTML = '';
+      sel.add(new Option(placeholder || 'All', ''));
+      (items || []).forEach(v => {
+        const opt = new Option(v, v);
+        if (keep && v === keep) opt.selected = true;
+        sel.add(opt);
+      });
+      // refresh the fancy dropdown for this select
+      if (window.rebuildFancy) window.rebuildFancy(selectId);
+    }
+    </script>
+    <script>
+    (function(){
+      const SELECT_IDS = ['fCustomer','fCommName','fAM','fStatus'];
+
+      document.addEventListener('DOMContentLoaded', () => {
+        initFancySelects(SELECT_IDS);
+      });
+
+      // Build a fancy wrapper next to each native <select>
+      function initFancySelects(ids){
+        ids.forEach(id => {
+          const sel = document.getElementById(id);
+          if (!sel) return;
+          // hide native select (we'll still use it for value + change events)
+          sel.classList.add('native-select-hidden');
+
+          // create wrapper
+          const wrap = document.createElement('div');
+          wrap.className = 'fancy-select';
+
+          const trigger = document.createElement('button');
+          trigger.type = 'button';
+          trigger.className = 'fancy-trigger';
+          trigger.innerHTML = `<span class="label">${currentLabel(sel)}</span><span class="icon">expand_more</span>`;
+
+          const panel = document.createElement('div');
+          panel.className = 'fancy-panel';
+          panel.setAttribute('role','listbox');
+
+          wrap.appendChild(trigger);
+          wrap.appendChild(panel);
+          sel.parentNode.insertBefore(wrap, sel.nextSibling);
+
+          // interactions
+          trigger.addEventListener('click', () => toggleOpen(wrap));
+          document.addEventListener('click', (e)=>{
+            if (!wrap.contains(e.target)) wrap.classList.remove('open');
+          });
+          wrap.addEventListener('keydown', (e)=>{
+            if (e.key === 'Escape') wrap.classList.remove('open');
+          });
+
+          // initial build
+          rebuildFancy(id);
+        });
+      }
+
+      // Rebuild options in the fancy panel from the native select
+      window.rebuildFancy = function(id){
+        const sel = document.getElementById(id);
+        const wrap = sel.nextElementSibling && sel.nextElementSibling.classList.contains('fancy-select')
+                    ? sel.nextElementSibling : null;
+        if (!wrap) return;
+
+        const panel = wrap.querySelector('.fancy-panel');
+        const triggerLabel = wrap.querySelector('.fancy-trigger .label');
+        panel.innerHTML = '';
+
+        Array.from(sel.options).forEach(opt => {
+          const row = document.createElement('div');
+          row.className = 'fancy-option';
+          row.setAttribute('role','option');
+          row.setAttribute('data-value', opt.value);
+          row.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
+          row.innerHTML = `<span>${opt.text}</span><span class="check" style="display:${opt.selected?'block':'none'}">check</span>`;
+          row.addEventListener('click', ()=>{
+            // sync to native select and fire existing 'change' handlers
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change', { bubbles:true }));
+            // update visuals
+            triggerLabel.textContent = opt.text;
+            panel.querySelectorAll('.fancy-option').forEach(o=>{
+              o.setAttribute('aria-selected','false');
+              const c=o.querySelector('.check'); if (c) c.style.display='none';
+            });
+            row.setAttribute('aria-selected','true');
+            row.querySelector('.check').style.display='block';
+            wrap.classList.remove('open');
+          });
+          panel.appendChild(row);
+        });
+
+        triggerLabel.textContent = currentLabel(sel);
+      };
+
+      function toggleOpen(wrap){
+        const open = wrap.classList.toggle('open');
+        if (open) {
+          // close other open dropdowns
+          document.querySelectorAll('.fancy-select.open').forEach(el => { if (el!==wrap) el.classList.remove('open'); });
+        }
+      }
+
+      function currentLabel(sel){
+        return sel.options[sel.selectedIndex]?.text || sel.getAttribute('aria-label') || 'All';
+      }
+    })();
+    </script>
+
+</body>
+</html>
