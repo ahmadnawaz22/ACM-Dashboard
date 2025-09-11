@@ -184,33 +184,33 @@
       <section class="card">
         <h2>Key Account Information</h2>
         <div class="metrics">
-          <div class="metric"><div class="label">Customer Name</div><div class="value">Acme Corp</div></div>
-          <div class="metric"><div class="label">Commercial Name</div><div class="value">ACME</div></div>
-          <div class="metric"><div class="label">Deal Type</div><div class="value">Enterprise</div></div>
-          <div class="metric"><div class="label">Account Manager</div><div class="value">Sarah Johnson</div></div>
-          <div class="metric"><div class="label">Customer Success</div><div class="value">M. Chen</div></div>
-          <div class="metric"><div class="label">Executive Sponsor</div><div class="value">D. Williams</div></div>
-          <div class="metric"><div class="label">Support Type</div><div class="value">Premium</div></div>
-          <div class="metric"><div class="label">Deal Category</div><div class="value">Strategic</div></div>
-          <div class="metric"><div class="label">Active Countries</div><div class="value">UAE, KSA, EG</div></div>
+          <div class="metric"><div class="label">Customer Name</div><div class="value" id="kiCustomerName">—</div></div>
+          <div class="metric"><div class="label">Commercial Name</div><div class="value" id="kiCommercialName">—</div></div>
+          <div class="metric"><div class="label">Deal Type</div><div class="value" id="kiDealType">—</div></div>
+          <div class="metric"><div class="label">Account Manager</div><div class="value" id="kiAccountManager">—</div></div>
+          <div class="metric"><div class="label">Customer Success</div><div class="value" id="kiCustomerSuccess">—</div></div>
+          <div class="metric"><div class="label">Executive Sponsor</div><div class="value" id="kiExecutiveSponsor">—</div></div>
+          <div class="metric"><div class="label">Support Type</div><div class="value" id="kiSupportType">—</div></div>
+          <div class="metric"><div class="label">Deal Category</div><div class="value" id="kiDealCategory">—</div></div>
+          <div class="metric"><div class="label">Active Countries</div><div class="value" id="kiActiveCountries">—</div></div>
           <div class="metric">
-            <div class="label">Contract Folder</div>
-            <a class="link" href="#" target="_blank"><span class="ico">folder_open</span>Open Folder</a>
-          </div>
+          <div class="label">Contract Folder</div>
+          <a class="link" href="#" target="_blank" id="kiContractFolder"><span class="ico">folder_open</span>Open Folder</a>
+  </div>
         </div>
       </section>
 
       <section class="card">
         <h2>Client Health</h2>
         <div class="metrics">
-          <div class="metric"><div class="label">Client Since</div><div class="value">Jan 2022</div></div>
-          <div class="metric"><div class="label">Lifetime Months</div><div class="value">36</div></div>
-          <div class="metric"><div class="label">Renewal Date</div><div class="value">Dec 2025</div></div>
-          <div class="metric"><div class="label">Months to Renewal</div><div class="value">4</div></div>
-          <div class="metric"><div class="label">License Type</div><div class="value">Per Txn</div></div>
-          <div class="metric"><div class="label">Renewal Type</div><div class="value">Auto</div></div>
-          <div class="metric"><div class="label">Rollover</div><div class="value">Yes</div></div>
-          <div class="metric"><div class="label">Status</div><div class="value"><span class="badge ok">Active</span></div></div>
+          <div class="metric"><div class="label">Client Since</div><div class="value" id="chClientSince">—</div></div>
+          <div class="metric"><div class="label">Lifetime Months</div><div class="value" id="chLifetimeMonths">—</div></div>
+          <div class="metric"><div class="label">Renewal Date</div><div class="value" id="chRenewalDate">—</div></div>
+          <div class="metric"><div class="label">Months to Renewal</div><div class="value" id="chMonthsToRenewal">—</div></div>
+          <div class="metric"><div class="label">License Type</div><div class="value" id="chLicenseType">—</div></div>
+          <div class="metric"><div class="label">Renewal Type</div><div class="value" id="chRenewalType">—</div></div>
+          <div class="metric"><div class="label">Rollover</div><div class="value" id="chRollover">—</div></div>
+          <div class="metric"><div class="label">Status</div><div class="value" id="chStatus"><span class="badge">—</span></div></div>
         </div>
       </section>
     </div>
@@ -403,6 +403,7 @@
         .withSuccessHandler(applyFilterOptions)
         .withFailureHandler(err => { setLoading(''); alert('Filter load failed: ' + err.message); })
         .execQuery('filters.getOptions', payload);
+      loadClientBlocks();   // <<< add this line  
     }
 
     function applyFilterOptions(data) {
@@ -529,6 +530,72 @@
       }
     })();
     </script>
+  <script>
+  // Call this after filters update (we’ll hook it in applyFilterOptions)
+  function loadClientBlocks() {
+    const sel = getSelection();
+    if (!sel.customerName) {
+      clearClientInfo(); clearClientHealth(); return;
+    }
+    google.script.run
+      .withSuccessHandler(updateClientInfo)
+      .execQuery('client.info', sel);
+    google.script.run
+      .withSuccessHandler(updateClientHealth)
+      .execQuery('client.health', sel);
+  }
+
+  function setText(id, val){ const el = document.getElementById(id); if(el) el.textContent = (val ?? '—'); }
+  function setHTML(id, html){ const el = document.getElementById(id); if(el) el.innerHTML = html; }
+
+  function clearClientInfo(){
+    ['kiCustomerName','kiCommercialName','kiDealType','kiAccountManager','kiCustomerSuccess',
+     'kiExecutiveSponsor','kiSupportType','kiDealCategory','kiActiveCountries']
+      .forEach(id => setText(id, '—'));
+  }
+  function clearClientHealth(){
+    ['chClientSince','chLifetimeMonths','chRenewalDate','chMonthsToRenewal',
+     'chLicenseType','chRenewalType','chRollover']
+      .forEach(id => setText(id, '—'));
+    setHTML('chStatus', '<span class="badge">—</span>');
+  }
+
+  function updateClientInfo(d){
+    // d: { customer_name, commercial_name, deal_type, account_manager, customer_success,
+    //      executive_sponsor, support_type, deal_category, active_countries }
+    setText('kiCustomerName', d.customer_name || getSelection().customerName);
+    setText('kiCommercialName', d.commercial_name);
+    setText('kiDealType', d.deal_type);
+    setText('kiAccountManager', d.account_manager);
+    setText('kiCustomerSuccess', d.customer_success);
+    setText('kiExecutiveSponsor', d.executive_sponsor);
+    setText('kiSupportType', d.support_type);
+    setText('kiDealCategory', d.deal_category);
+
+    // ActiveCountries may be an array or a string
+    const ac = Array.isArray(d.active_countries) ? d.active_countries.join(', ') : d.active_countries;
+    setText('kiActiveCountries', ac || '—');
+  }
+
+  function updateClientHealth(d){
+    // d: { client_since, lifetime_months, renewal_date, months_to_renewal,
+    //      license_type, renewal_type, rollover, status }
+    setText('chClientSince', d.client_since);
+    setText('chLifetimeMonths', d.lifetime_months);
+    setText('chRenewalDate', d.renewal_date);
+    setText('chMonthsToRenewal', d.months_to_renewal);
+    setText('chLicenseType', d.license_type);
+    setText('chRenewalType', d.renewal_type);
+    setText('chRollover', (d.rollover === true || d.rollover === 'true') ? 'Yes' :
+                          (d.rollover === false || d.rollover === 'false') ? 'No' : (d.rollover ?? '—'));
+
+    // Status badge
+    const v = (d.status || '').toString().toLowerCase();
+    const cls = v === 'active' ? 'badge ok' : (v ? 'badge warn' : 'badge');
+    setHTML('chStatus', `<span class="${cls}">${d.status ?? '—'}</span>`);
+  }
+</script>
+  
 
 </body>
 </html>
