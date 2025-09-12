@@ -576,13 +576,22 @@
     const ac = Array.isArray(d.active_countries) ? d.active_countries.join(', ') : d.active_countries;
     setText('kiActiveCountries', ac || '—');
   }
+  
+  function fmtMMMyy(v){
+    if (!v) return '—';
+    const d = new Date(v);                 // works for DATE or TIMESTAMP strings
+    if (isNaN(d)) return String(v);        // fallback if already formatted
+    const m = d.toLocaleString('en-GB', { month: 'short' });
+    const y = String(d.getFullYear()).slice(-2);
+    return `${m}-${y}`;                    // e.g., Jan-25
+  }
 
   function updateClientHealth(d){
     // d: { client_since, lifetime_months, renewal_date, months_to_renewal,
     //      license_type, renewal_type, rollover, status }
-    setText('chClientSince', d.client_since);
+    setText('chClientSince', fmtMMMyy(d.client_since));
     setText('chLifetimeMonths', d.lifetime_months);
-    setText('chRenewalDate', d.renewal_date);
+    setText('chRenewalDate', fmtMMMyy(d.renewal_date));
     setText('chMonthsToRenewal', d.months_to_renewal);
     setText('chLicenseType', d.license_type);
     setText('chRenewalType', d.renewal_type);
